@@ -12,6 +12,8 @@ using AzureDevOpsBackup.Class;
 using System.Text.RegularExpressions;
 using static AzureDevOpsBackup.Class.FileLogger;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration.Json;
 
 // ReSharper disable RedundantAssignment
 // ReSharper disable NotAccessedVariable
@@ -87,6 +89,13 @@ namespace AzureDevOpsBackup
             bool isBackupOkAndUnZip = false;
             bool noProjectsToBackup = false;
             bool isOutputFolderContainFiles = false;
+
+            // Read appsettings
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json")
+                .AddJsonFile("appsettings.local.json", optional: true, reloadOnChange: true)
+                .Build();
 
             // Check requirements for tool to work
             Requirements.SystemCheck();
