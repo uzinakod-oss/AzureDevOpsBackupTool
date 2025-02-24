@@ -1708,7 +1708,7 @@ namespace AzureDevOpsBackup
                             var noAttatchLog = Array.Exists(args, argument => argument == "--noattatchlog");
 
                             // Send status email and parse data to function
-                            ReportSender.SendEmail(server, Globals._nossl, serverPort, emailFrom, emailTo, Globals._emailStatusMessage, repocountelements,
+                            ReportSender.SendEmail(configuration, server, Globals._nossl, serverPort, emailFrom, emailTo, Globals._emailStatusMessage, repocountelements,
                                 repoitemscountelements, Globals._repoCount, Globals._repoItemsCount, Globals._totalFilesIsBackupUnZipped, Globals._totalBlobFilesIsBackup,
                                 Globals._totalTreeFilesIsBackup, outDirSaveToDisk, elapsedTime, Globals._errors, Globals._totalFilesIsDeletedAfterUnZipped,
                                 Globals._totalBackupsIsDeleted, daysToKeepBackups, Globals._repoCountStatusText, Globals._repoItemsCountStatusText,

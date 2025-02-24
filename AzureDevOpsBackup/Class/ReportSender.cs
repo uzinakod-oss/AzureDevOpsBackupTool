@@ -1,17 +1,23 @@
-﻿using System;
+﻿using Azure.Identity;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Graph;
+using Microsoft.Graph.Models;
+using Microsoft.Graph.Users.Item.SendMail;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Mail;
-using System.Net.Mime;
 using System.Text;
+using System.Threading.Tasks;
 using static AzureDevOpsBackup.Class.FileLogger;
+using EventType = AzureDevOpsBackup.Class.FileLogger.EventType;
 
 namespace AzureDevOpsBackup.Class
 {
     internal class ReportSender
     {
-        public static void SendEmail(string serverAddress, bool noSsl, string serverPort, string emailFrom, string emailTo, string emailStatusMessage,
+        public static void SendEmail(IConfigurationRoot configuration, string serverAddress, bool noSsl, string serverPort, string emailFrom, string emailTo, string emailStatusMessage,
             List<string> repoCountElements, List<string> repoItemsCountElements, int repoCount, int repoItemsCount, int totalFilesIsBackupUnZipped,
             int totalBlobFilesIsBackup, int totalTreeFilesIsBackup, string outDir, string elapsedTime, int errors,
             int totalFilesIsDeletedAfterUnZipped, int totalBackupsIsDeleted, string daysToKeep, string repoCountStatusText, string repoItemsCountStatusText,
@@ -139,157 +145,136 @@ namespace AzureDevOpsBackup.Class
                 $"<h3>From Your {Globals.AppName} tool!<o:p></o:p></h3>" + Globals._copyrightData + ", v." + Globals._vData;
             }
 
-            // Create mail
-            var message = new MailMessage();
-            message.From = new MailAddress(emailFrom);
-
-            // Split the emailTo string by commas and add each address to the To collection
-            var emailAddresses = emailTo.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-            foreach (var address in emailAddresses)
-            {
-                message.To.Add(address.Trim());
-            }
 
             // Set email subject
-            message.Subject = "[" + emailStatusMessage + $"] - {Globals.AppName} status - (" + totalBlobFilesIsBackup +
+            var subject = "[" + emailStatusMessage + $"] - {Globals.AppName} status - (" + totalBlobFilesIsBackup +
                               " Git projects backed up), " + errors + " issues(s) - (backups to keep (days): " + daysToKeep +
                               ", backup(s) deleted: " + totalBackupsIsDeleted + ")";
-            
-            // Set email body
-            message.Body = mailBody;
-            message.BodyEncoding = Encoding.UTF8;
-            message.IsBodyHtml = true;
 
-            // Set email priority level based on command-line argument
-            message.Priority = Globals.EmailPriority;
-            message.DeliveryNotificationOptions = DeliveryNotificationOptions.None;
-            message.BodyTransferEncoding = TransferEncoding.QuotedPrintable;
+            var msMessage = CreateMessage(emailFrom, emailTo, subject, mailBody);       
 
             // ReSharper disable once UnusedVariable
             var isParsable = Int32.TryParse(serverPortStr, out var serverPortNumber);
-            using (var client = new SmtpClient(serverAddress, serverPortNumber)
+
+            Message("Created email report and parsed data", EventType.Information, 1000);
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("Created email report and parsed data");
+            Console.ResetColor();
+
+            // Check if we should attach the logfile to the email report or not
+            if (noAttatchLog)
             {
-                EnableSsl = !noSsl,
-                UseDefaultCredentials = true
-            })
+                // Log
+                Message("No logfile attached to email report!", EventType.Information, 1000);
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("No logfile attached to email report!");
+                Console.ResetColor();
+            }
+            else
             {
-                Message("Created email report and parsed data", EventType.Information, 1000);
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("Created email report and parsed data");
+                // Get all the files in the log dir for today
+
+                // Log
+                Message("Finding logfile for today to attach in email report...", EventType.Information, 1000);
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("Finding logfile for today to attach in email report...");
                 Console.ResetColor();
 
-                // Check if we should attach the logfile to the email report or not
-                if (noAttatchLog)
+                // Get filename to find
+                var filePaths = Directory.GetFiles(Files.LogFilePath,
+                    $"{Globals.AppName} Log " + DateTime.Today.ToString("dd-MM-yyyy") + "*.*");
+
+                // Get the files that their extension are .log or .txt
+                var files = filePaths.Where(filePath =>
+                    Path.GetExtension(filePath).Contains(".log") || Path.GetExtension(filePath).Contains(".txt"));
+
+                // Loop through the files enumeration and attach each file in the mail.
+                foreach (var file in files)
                 {
-                    // Log
-                    Message("No logfile attached to email report!", EventType.Information, 1000);
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("No logfile attached to email report!");
-                    Console.ResetColor();
-                }
-                else
-                {
-                    // Get all the files in the log dir for today
+                    Globals._fileAttachedIneMailReport = file;
 
                     // Log
-                    Message("Finding logfile for today to attach in email report...", EventType.Information, 1000);
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("Finding logfile for today to attach in email report...");
+                    Message("Found logfile for today:", EventType.Information, 1000);
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("Found logfile for today:");
                     Console.ResetColor();
 
-                    // Get filename to find
-                    var filePaths = Directory.GetFiles(Files.LogFilePath,
-                        $"{Globals.AppName} Log " + DateTime.Today.ToString("dd-MM-yyyy") + "*.*");
+                    // Full file name
+                    var fileName = Globals._fileAttachedIneMailReport;
+                    var fi = new FileInfo(fileName);
 
-                    // Get the files that their extension are .log or .txt
-                    var files = filePaths.Where(filePath =>
-                        Path.GetExtension(filePath).Contains(".log") || Path.GetExtension(filePath).Contains(".txt"));
+                    // Get File Name
+                    var justFileName = fi.Name;
+                    Console.WriteLine("File name: " + justFileName);
+                    Message("File name: " + justFileName, EventType.Information, 1000);
 
-                    // Loop through the files enumeration and attach each file in the mail.
-                    foreach (var file in files)
+                    // Get file name with full path
+                    var fullFileName = fi.FullName;
+                    Console.WriteLine("Full file name: " + fullFileName);
+                    Message("Full file name: " + fullFileName, EventType.Information, 1000);
+
+                    // Get file extension
+                    var extn = fi.Extension;
+                    Console.WriteLine("File Extension: " + extn);
+                    Message("File Extension: " + extn, EventType.Information, 1000);
+
+                    // Get directory name
+                    var directoryName = fi.DirectoryName;
+                    Console.WriteLine("Directory name: " + directoryName);
+                    Message("Directory name: " + directoryName, EventType.Information, 1000);
+
+                    // File Exists ?
+                    var exists = fi.Exists;
+                    Console.WriteLine("File exists: " + exists);
+                    Message("File exists: " + exists, EventType.Information, 1000);
+                    if (fi.Exists)
                     {
-                        Globals._fileAttachedIneMailReport = file;
+                        // Get file size
+                        var size = fi.Length;
+                        Console.WriteLine("File Size in Bytes: " + size);
+                        Message("File Size in Bytes: " + size, EventType.Information, 1000);
 
-                        // Log
-                        Message("Found logfile for today:", EventType.Information, 1000);
-                        Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine("Found logfile for today:");
-                        Console.ResetColor();
+                        // File ReadOnly ?
+                        var isReadOnly = fi.IsReadOnly;
+                        Console.WriteLine("Is ReadOnly: " + isReadOnly);
+                        Message("Is ReadOnly: " + isReadOnly, EventType.Information, 1000);
 
-                        // Full file name
-                        var fileName = Globals._fileAttachedIneMailReport;
-                        var fi = new FileInfo(fileName);
-
-                        // Get File Name
-                        var justFileName = fi.Name;
-                        Console.WriteLine("File name: " + justFileName);
-                        Message("File name: " + justFileName, EventType.Information, 1000);
-
-                        // Get file name with full path
-                        var fullFileName = fi.FullName;
-                        Console.WriteLine("Full file name: " + fullFileName);
-                        Message("Full file name: " + fullFileName, EventType.Information, 1000);
-
-                        // Get file extension
-                        var extn = fi.Extension;
-                        Console.WriteLine("File Extension: " + extn);
-                        Message("File Extension: " + extn, EventType.Information, 1000);
-
-                        // Get directory name
-                        var directoryName = fi.DirectoryName;
-                        Console.WriteLine("Directory name: " + directoryName);
-                        Message("Directory name: " + directoryName, EventType.Information, 1000);
-
-                        // File Exists ?
-                        var exists = fi.Exists;
-                        Console.WriteLine("File exists: " + exists);
-                        Message("File exists: " + exists, EventType.Information, 1000);
-                        if (fi.Exists)
-                        {
-                            // Get file size
-                            var size = fi.Length;
-                            Console.WriteLine("File Size in Bytes: " + size);
-                            Message("File Size in Bytes: " + size, EventType.Information, 1000);
-
-                            // File ReadOnly ?
-                            var isReadOnly = fi.IsReadOnly;
-                            Console.WriteLine("Is ReadOnly: " + isReadOnly);
-                            Message("Is ReadOnly: " + isReadOnly, EventType.Information, 1000);
-
-                            // Creation, last access, and last write time
-                            var creationTime = fi.CreationTime;
-                            Console.WriteLine("Creation time: " + creationTime);
-                            Message("Creation time: " + creationTime, EventType.Information, 1000);
-                            var accessTime = fi.LastAccessTime;
-                            Console.WriteLine("Last access time: " + accessTime);
-                            Message("Last access time: " + accessTime, EventType.Information, 1000);
-                            var updatedTime = fi.LastWriteTime;
-                            Console.WriteLine("Last write time: " + updatedTime + "\n");
-                            Message("Last write time: " + updatedTime, EventType.Information, 1000);
-                        }
-
-                        // TODO Do not add more to logfile here - file is locked!
-                        var attachment = new Attachment(file);
-
-                        // Attach file to email
-                        message.Attachments.Add(attachment);
+                        // Creation, last access, and last write time
+                        var creationTime = fi.CreationTime;
+                        Console.WriteLine("Creation time: " + creationTime);
+                        Message("Creation time: " + creationTime, EventType.Information, 1000);
+                        var accessTime = fi.LastAccessTime;
+                        Console.WriteLine("Last access time: " + accessTime);
+                        Message("Last access time: " + accessTime, EventType.Information, 1000);
+                        var updatedTime = fi.LastWriteTime;
+                        Console.WriteLine("Last write time: " + updatedTime + "\n");
+                        Message("Last write time: " + updatedTime, EventType.Information, 1000);
                     }
 
-                    // Log
-                    Message("Logfile attached to email report!", EventType.Information, 1000);
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("Logfile attached to email report!");
-                    Console.ResetColor();
+                    // TODO Do not add more to logfile here - file is locked!
+                    var msAttachment = new FileAttachment()
+                    {
+                        Name = justFileName,
+                        ContentType = "text/plain",
+                        ContentBytes = Encoding.ASCII.GetBytes(File.ReadAllText(file))
+                    };
+
+                    // Attach file to email
+                    msMessage.Attachments.Add(msAttachment);
                 }
+
+                // Log
+                Message("Logfile attached to email report!", EventType.Information, 1000);
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("Logfile attached to email report!");
+                Console.ResetColor();
 
                 //Try to send email status email
                 try
                 {
                     // Send the email
-                    client.Send(message);
+                    SendMessageWithMsGraph(configuration, msMessage).Wait();
 
-                    // Release files for the email
-                    message.Dispose();
                     // TODO logfile is not locked from here - you can add logs to logfile again from here!
 
                     // Log
@@ -307,144 +292,79 @@ namespace AzureDevOpsBackup.Class
                     Console.ResetColor();
                 }
             }
-
-
-            /*using (var client = new SmtpClient(serverAddress, serverPortNumber) { EnableSsl = true, UseDefaultCredentials = true })
-            {
-                Message("Created email report and parsed data", EventType.Information, 1000);
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("Created email report and parsed data");
-                Console.ResetColor();
-
-                // Check if we should attach the logfile to the email report or not
-                if (noAttatchLog)
-                {
-                    // Log
-                    Message("No logfile attached to email report!", EventType.Information, 1000);
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("No logfile attached to email report!");
-                    Console.ResetColor();
-                }
-                else
-                {
-                    // Get all the files in the log dir for today
-
-                    // Log
-                    Message("Finding logfile for today to attach in email report...", EventType.Information, 1000);
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("Finding logfile for today to attach in email report...");
-                    Console.ResetColor();
-
-                    // Get filename to find
-                    var filePaths = Directory.GetFiles(Files.LogFilePath,
-                        $"{Globals.AppName} Log " + DateTime.Today.ToString("dd-MM-yyyy") + "*.*");
-
-                    // Get the files that their extension are .log or .txt
-                    var files = filePaths.Where(filePath =>
-                        Path.GetExtension(filePath).Contains(".log") || Path.GetExtension(filePath).Contains(".txt"));
-
-                    // Loop through the files enumeration and attach each file in the mail.
-                    foreach (var file in files)
-                    {
-                        Globals._fileAttachedIneMailReport = file;
-
-                        // Log
-                        Message("Found logfile for today:", EventType.Information, 1000);
-                        Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine("Found logfile for today:");
-                        Console.ResetColor();
-
-                        // Full file name
-                        var fileName = Globals._fileAttachedIneMailReport;
-                        var fi = new FileInfo(fileName);
-
-                        // Get File Name
-                        var justFileName = fi.Name;
-                        Console.WriteLine("File name: " + justFileName);
-                        Message("File name: " + justFileName, EventType.Information, 1000);
-
-                        // Get file name with full path
-                        var fullFileName = fi.FullName;
-                        Console.WriteLine("Full file name: " + fullFileName);
-                        Message("Full file name: " + fullFileName, EventType.Information, 1000);
-
-                        // Get file extension
-                        var extn = fi.Extension;
-                        Console.WriteLine("File Extension: " + extn);
-                        Message("File Extension: " + extn, EventType.Information, 1000);
-
-                        // Get directory name
-                        var directoryName = fi.DirectoryName;
-                        Console.WriteLine("Directory name: " + directoryName);
-                        Message("Directory name: " + directoryName, EventType.Information, 1000);
-
-                        // File Exists ?
-                        var exists = fi.Exists;
-                        Console.WriteLine("File exists: " + exists);
-                        Message("File exists: " + exists, EventType.Information, 1000);
-                        if (fi.Exists)
-                        {
-                            // Get file size
-                            var size = fi.Length;
-                            Console.WriteLine("File Size in Bytes: " + size);
-                            Message("File Size in Bytes: " + size, EventType.Information, 1000);
-
-                            // File ReadOnly ?
-                            var isReadOnly = fi.IsReadOnly;
-                            Console.WriteLine("Is ReadOnly: " + isReadOnly);
-                            Message("Is ReadOnly: " + isReadOnly, EventType.Information, 1000);
-
-                            // Creation, last access, and last write time
-                            var creationTime = fi.CreationTime;
-                            Console.WriteLine("Creation time: " + creationTime);
-                            Message("Creation time: " + creationTime, EventType.Information, 1000);
-                            var accessTime = fi.LastAccessTime;
-                            Console.WriteLine("Last access time: " + accessTime);
-                            Message("Last access time: " + accessTime, EventType.Information, 1000);
-                            var updatedTime = fi.LastWriteTime;
-                            Console.WriteLine("Last write time: " + updatedTime + "\n");
-                            Message("Last write time: " + updatedTime, EventType.Information, 1000);
-                        }
-
-                        // TODO Do not add more to logfile here - file is locked!
-                        var attachment = new Attachment(file);
-
-                        // Attach file to email
-                        message.Attachments.Add(attachment);
-                    }
-
-                    // Log
-                    Message("Logfile attached to email report!", EventType.Information, 1000);
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("Logfile attached to email report!");
-                    Console.ResetColor();
-                }
-
-                //Try to send email status email
-                try
-                {
-                    // Send the email
-                    client.Send(message);
-
-                    // Release files for the email
-                    message.Dispose();
-                    // TODO logfile is not locked from here - you can add logs to logfile again from here!
-
-                    // Log
-                    Message("Email notification is send to '" + emailTo + "' at '" + DateTime.Now.ToString("dd-MM-yyyy (HH-mm)") + "' with priority " + Globals.EmailPriority + "!", EventType.Information, 1000);
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine("Email notification is send to '" + emailTo + "' at '" + DateTime.Now.ToString("dd-MM-yyyy (HH-mm)") + "' with priority " + Globals.EmailPriority + "!");
-                    Console.ResetColor();
-                }
-                catch (Exception ex)
-                {
-                    // Log
-                    Message("Sorry, we are unable to send email notification of your presence. Please try again! Error: " + ex, EventType.Error, 1001);
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Sorry, we are unable to send email notification of your presence. Please try again! Error: " + ex);
-                    Console.ResetColor();
-                }
-            }*/
         }
+
+        public static Message CreateMessage(string emailFrom, string emailTo, string subject, string mailBody)
+        {
+            // Split the emailTo string by commas and add each address to the To collection
+            var emailAddresses = emailTo.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            var Recipients = new List<Recipient>();
+            foreach (var address in emailAddresses)
+            {
+                Recipients.Add(new Recipient()
+                {
+                    EmailAddress = new EmailAddress()
+                    {
+                        Address = address.Trim()
+                    }
+                });
+            }
+
+            var message = new Message()
+            {
+                ToRecipients = Recipients,
+                From = new Recipient()
+                {
+                    EmailAddress = new EmailAddress()
+                    {
+                        Address = emailFrom,
+                    }
+                },
+                Subject = subject,
+                Body = new ItemBody()
+                {
+                    Content = mailBody,
+                    ContentType = BodyType.Html
+                },
+                IsDeliveryReceiptRequested = true,
+                Attachments = new List<Microsoft.Graph.Models.Attachment>()
+            };
+            return message;
+        }
+
+        public static async Task SendMessageWithMsGraph(IConfigurationRoot configuration, Message message)
+        {
+            string clientSecret = configuration["clientSecret"];
+            string clientId = configuration["clientId"];
+            string tenantId = configuration["tenantId"];
+
+            var options = new ClientSecretCredentialOptions
+            {
+                AuthorityHost = AzureAuthorityHosts.AzurePublicCloud,
+            };
+            var clientSecretCredential = new ClientSecretCredential(tenantId, clientId, clientSecret, options);
+            var scopes = new[] { "https://graph.microsoft.com/.default" };
+            var msGraphClient = new GraphServiceClient(clientSecretCredential, scopes);
+            var body = new SendMailPostRequestBody
+            {
+                Message = message
+            };
+
+            try
+            {
+                await msGraphClient.Users[message.From.EmailAddress.Address].SendMail.PostAsync(body);
+            }
+            catch (Exception ex)
+            {
+                // Log
+                Message("Error sending mail: " + ex, EventType.Error, 1002);
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("Error sending mail: " + ex);
+                Console.ResetColor();
+            }
+
+            return;
+        }
+
     }
 }
