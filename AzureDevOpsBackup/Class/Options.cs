@@ -13,15 +13,6 @@ namespace AzureDevOpsBackup.Class
         [Option('b', "backup", Required = true, HelpText = "Folder where to store the backup(s) - folder with timestamp will be created")]
         public string Backup { get; set; }
 
-        [Option('s', "server", Required = true, HelpText = "IP address or DNS name of the SMTP server")]
-        public string Server { get; set; }
-
-        [Option("nossl", HelpText = "Use no SSL for the email server (optional)")]
-        public bool NoSSL { get; set; }
-
-        [Option('p', "port", Required = true, HelpText = "The port for the SMTP server")]
-        public int Port { get; set; }
-
         [Option('f', "from", Required = true, HelpText = "The email address the report is sent from")]
         public string From { get; set; }
 

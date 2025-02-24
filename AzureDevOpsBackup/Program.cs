@@ -77,8 +77,6 @@ namespace AzureDevOpsBackup
         private static async Task Main(string[] args)
         {
             // Global variabels for tool
-            string server = null;
-            string serverPort = null;
             string emailFrom = null;
             string emailTo = null;
             string elapsedTime = null;
@@ -125,7 +123,7 @@ namespace AzureDevOpsBackup
             Message("Loaded log configuration into the program: " + Globals.AppName, EventType.Information, 1000);
 
             // Check for required Args for application will work
-            string[] requiredArgs = { "--token", "--org", "--backup", "--server", "--port", "--from", "--to" };
+            string[] requiredArgs = { "--token", "--org", "--backup", "--from", "--to" };
             
             // Check if parameters have been provided and Contains one of
             if (args.Length == 0 || args.Contains("--help") || args.Contains("/h") || args.Contains("/?") || args.Contains("/info") || args.Contains("/about") || args.Contains("--tokenfile"))
@@ -204,12 +202,12 @@ namespace AzureDevOpsBackup
                 }
             }
 
-            // Log checking if the 7 required arguments is present to log
-            Message("Checking if the 7 required arguments is present (--token, --org, --backup, --server, --port, --from, --to)", EventType.Information, 1000);
+            // Log checking if the 5 required arguments is present to log
+            Message("Checking if the 5 required arguments is present (--token, --org, --backup,--from, --to)", EventType.Information, 1000);
 
-            // Log to console checking if the 7 required arguments is present to log
+            // Log to console checking if the 5 required arguments is present to log
             Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("Checking if the 7 required arguments is present (--token, --org, --backup, --server, --port, --from, --to)...");
+            Console.WriteLine("Checking if the 5 required arguments is present (--token, --org, --backup, --from, --to)...");
 
             // Reset color
             Console.ResetColor();
@@ -220,12 +218,12 @@ namespace AzureDevOpsBackup
                 // Parse the provided arguments
                 // ParseArguments(args);
                 // If okay do some work
-                case true when args.Intersect(requiredArgs).Count() == 7:
+                case true when args.Intersect(requiredArgs).Count() == 5:
                     {
                         // Startup log entry
-                        Message("Checked if the 7 required arguments is present (--token, --org, --backup, --server, --port, --from, --to) - all is fine!", EventType.Information, 1000);
+                        Message("Checked if the 5 required arguments is present (--token, --org, --backup, --from, --to) - all is fine!", EventType.Information, 1000);
                         Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine("Checked if the 7 required arguments is present (--token, --org, --backup, --server, --port, --from, --to) - all is fine!");
+                        Console.WriteLine("Checked if the 5 required arguments is present (--token, --org, --backup, --from, --to) - all is fine!");
                         Console.ResetColor();
 
                         // Set the email priority level based on command line argument
@@ -1102,36 +1100,17 @@ namespace AzureDevOpsBackup
                                 Console.WriteLine("\nBackup end Time: " + Globals._endTime);
 
                                 // Parse data to email
-                                server = args[Array.IndexOf(args, "--server") + 1];
-                                serverPort = args[Array.IndexOf(args, "--port") + 1];
                                 emailFrom = args[Array.IndexOf(args, "--from") + 1];
                                 emailTo = args[Array.IndexOf(args, "--to") + 1];
 
-                                // Check if --nossl is set
-                                if (args.Contains("--nossl"))
-                                {
-                                    // Set to true to not use SSL for email server
-                                    Globals._nossl = true;
-                                }
-                                else
-                                {
-                                    // Set to false to use SSL for email server
-                                    Globals._nossl = false;
-                                }
 
                                 // Log details regarding email send
                                 Console.WriteLine("Email details:");
-                                Console.WriteLine("--server: " + server);
-                                Console.WriteLine("--port: " + serverPort);
                                 Console.WriteLine("--from: " + emailFrom);
                                 Console.WriteLine("--to: " + emailTo);
-                                Console.WriteLine("--ssl: " + (!Globals._nossl ? "enabled" : "disabled") + Environment.NewLine);
                                 Message("Email details:", EventType.Information, 1000);
-                                Message("--server: " + server, EventType.Information, 1000);
-                                Message("--port: " + serverPort, EventType.Information, 1000);
                                 Message("--from: " + emailFrom, EventType.Information, 1000);
                                 Message("--to: " + emailTo, EventType.Information, 1000);
-                                Message("--ssl: " + (!Globals._nossl ? "enabled" : "disabled"), EventType.Information, 1000);
 
                                 // Cleanup old backups
                                 Message("Clean up old backups", EventType.Information, 1000);
@@ -1708,7 +1687,7 @@ namespace AzureDevOpsBackup
                             var noAttatchLog = Array.Exists(args, argument => argument == "--noattatchlog");
 
                             // Send status email and parse data to function
-                            ReportSender.SendEmail(configuration, server, Globals._nossl, serverPort, emailFrom, emailTo, Globals._emailStatusMessage, repocountelements,
+                            ReportSender.SendEmail(configuration, emailFrom, emailTo, Globals._emailStatusMessage, repocountelements,
                                 repoitemscountelements, Globals._repoCount, Globals._repoItemsCount, Globals._totalFilesIsBackupUnZipped, Globals._totalBlobFilesIsBackup,
                                 Globals._totalTreeFilesIsBackup, outDirSaveToDisk, elapsedTime, Globals._errors, Globals._totalFilesIsDeletedAfterUnZipped,
                                 Globals._totalBackupsIsDeleted, daysToKeepBackups, Globals._repoCountStatusText, Globals._repoItemsCountStatusText,
@@ -1730,11 +1709,11 @@ namespace AzureDevOpsBackup
                 // Not do the work
                 case true:
                     // Log checking of arguments required for this console application is missing
-                    Message("Some of the 7 required arguments is missing: --token, --org, --backup, --server, --port, --from and --to!", EventType.Error, 1001);
+                    Message("Some of the 5 required arguments is missing: --token, --org, --backup, --from and --to!", EventType.Error, 1001);
 
                     // Log checking of arguments required for this application is missing to console
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("\nSome of the 7 required arguments is missing: --token, --org, --backup, --server, --port, --from and --to!");
+                    Console.WriteLine("\nSome of the 5 required arguments is missing: --token, --org, --backup, --from and --to!");
 
                     // Reset color
                     Console.ResetColor();

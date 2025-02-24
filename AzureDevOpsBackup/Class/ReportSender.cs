@@ -17,7 +17,7 @@ namespace AzureDevOpsBackup.Class
 {
     internal class ReportSender
     {
-        public static void SendEmail(IConfigurationRoot configuration, string serverAddress, bool noSsl, string serverPort, string emailFrom, string emailTo, string emailStatusMessage,
+        public static void SendEmail(IConfigurationRoot configuration, string emailFrom, string emailTo, string emailStatusMessage,
             List<string> repoCountElements, List<string> repoItemsCountElements, int repoCount, int repoItemsCount, int totalFilesIsBackupUnZipped,
             int totalBlobFilesIsBackup, int totalTreeFilesIsBackup, string outDir, string elapsedTime, int errors,
             int totalFilesIsDeletedAfterUnZipped, int totalBackupsIsDeleted, string daysToKeep, string repoCountStatusText, string repoItemsCountStatusText,
@@ -26,7 +26,6 @@ namespace AzureDevOpsBackup.Class
             bool useSimpleMailReportLayout, bool noAttatchLog, string isOutputFolderContainFilesStatusText, string isDaysToKeepNotDefaultStatusText, string startTime, string endTime, bool deletedFilesAfterUnzip,
             bool checkForLeftoverFilesAfterCleanup)
         {
-            var serverPortStr = serverPort;
             string mailBody;
             //if (mailBody == null) throw new ArgumentNullException(nameof(mailBody));
 
@@ -152,9 +151,6 @@ namespace AzureDevOpsBackup.Class
                               ", backup(s) deleted: " + totalBackupsIsDeleted + ")";
 
             var msMessage = CreateMessage(emailFrom, emailTo, subject, mailBody);       
-
-            // ReSharper disable once UnusedVariable
-            var isParsable = Int32.TryParse(serverPortStr, out var serverPortNumber);
 
             Message("Created email report and parsed data", EventType.Information, 1000);
             Console.ForegroundColor = ConsoleColor.Green;
