@@ -1,8 +1,8 @@
 # Note
 
-Ceci est un clone de [https://github.com/michaelmsonne/AzureDevOpsBackupTool/tree/master](https://github.com/michaelmsonne/AzureDevOpsBackupTool/tree/master).
+Forked from [https://github.com/michaelmsonne/AzureDevOpsBackupTool/tree/master](https://github.com/michaelmsonne/AzureDevOpsBackupTool/tree/master).
 
-Il a été modifié pour utilser MsGrap plutôt qu'un SmtpClient pour envoyer des mails.
+Modified to use MsGraph instead of Smtp server for mails.
 
 # Azure DevOps Backup
 
@@ -112,16 +112,26 @@ Outline the file contents of the repository. It helps users navigate the codebas
 On the top right corner of the Azure DevOps portal we have our account picture. When clicking on it reveals the account menu where we find a Security option. Inside Security, we have Personal access tokens. We click on New token to create one.
 For this example we only need to check the Read, write & manage permission for Code. When we name the token and click Create, we get the token value, but since it won’t be shown again, we must copy and save it elsewhere. We will need this token later, to access the API!
 
-## 2. Clone the repository, configure arguments and dependencies
+## 2. Clone the repository, configure arguments, appsettings and dependencies
 To get the sample code, we can clone this GitHub repository or another and open it with etc. Visual Studio. To test the solution in debug mode, we still have to configure a few arguments in the project properties. These arguments will define the access token — obtained on the previous step — , organization — i.e. the Azure DevOps domain — and the local directory where we want to write the backed up data. There is a fourth optional argument to state if we want to unzip the downloaded files — more on that later.
 
 **N.B:** Keep your generated access token in a safe place!
 
 Here’s how the argument list will look like:
 
-`.\AzureDevOpsBackup.exe --token "our-auth-token" --org "our-org" --backup "C:\backup\out-directory" --server "smtp.server.com" --port "25" --from "azure-devops-backup@domain.com" --to "backupmail@domain.com" --unzip --cleanup --daystokeepbackup 50 --priority high`
+`.\AzureDevOpsBackup.exe --token "our-auth-token" --org "our-org" --backup "C:\backup\out-directory" --from "azure-devops-backup@domain.com" --to "backupmail@domain.com" --unzip --cleanup --daystokeepbackup 50 --priority high`
 
 This solution uses two external libraries we need to reference: RestSharp to facilitate the API calls and Newtonsoft JSON to deserialize the API responses into objects.
+
+To send mails, the appsettings.json or appsettings.local.json file needs to be completed with MsGraph credentials:
+
+```
+{
+  "clientSecret": "",
+  "clientId": "",
+  "tenantId": ""
+}
+```
 
 ## 3. Analyze and run the code
 We start by declaring the data structures for the API responses. Then, the main function cycles through four nested levels of hierarchy — project / repository / branch / item — calling these API endpoints and deserializing the results into the corresponding structures.
@@ -147,9 +157,6 @@ Note we are also saving the original JSON item list we got from the repository c
 	
     	Read more here: https://learn.microsoft.com/en-us/azure/devops/release-notes/2018/sep-10-azure-devops-launch#administration
 - --backup: Specify the local directory where you want to store the Azure DevOps repository backups.
-- --server: IP address or domain name of the SMTP server for sending email notifications.
-- --nossl: Use this option to disable SSL/TLS for the SMTP server.
-- --port: The SMTP server port
 - --from: The email address for the notification emails to send from.
 - --toemail: The email address to report is send to.
 - --unzip: Use this option to extract the downloaded Zip files into a directory structure.
@@ -164,7 +171,7 @@ Note we are also saving the original JSON item list we got from the repository c
 - --info or /about: Show the about menu
 
 #### Mandatory arguments:
-Mandatory arguments is: **`--token, --org, --backup, --server, --port, --from and --to`**
+Mandatory arguments is: **`--token, --org, --backup, --from and --to`**
 
 #### **A bit more information about some arguments:**
 
@@ -211,7 +218,7 @@ The setup for that to work (via my testing and useing over long time) is to crea
 
 	**Sample**:
 	- **Program/script**: `D:\AzureDevOpsBackup\AzureDevOpsBackup.exe`
-	- **Add arguments**: `--token "xxxxxx" --org "YourOrg" --backup "D:\Backup\Azure DevOps" --server "domain-com.mail.protection.outlook.com" --port "25" --from "azure-devops-backup@domain.com" --to "AZ-DL-AzureDevOpsBackupReports@domain.com" --unzip --cleanup --daystokeepbackup 180`
+	- **Add arguments**: `--token "xxxxxx" --org "YourOrg" --backup "D:\Backup\Azure DevOps" --from "azure-devops-backup@domain.com" --to "AZ-DL-AzureDevOpsBackupReports@domain.com" --unzip --cleanup --daystokeepbackup 180`
 	- **Start in**: `D:\AzureDevOpsBackup`
 
 ## Logs
@@ -230,11 +237,11 @@ Check out the examples here:
 
 ### AzureDevOpsBackup
 
-`.\AzureDevOpsBackup.exe --token "xxxx..." --org "AzureDevOpsOrgName" --backup "D:\Backup data\Azure DevOps" --server "orgdomain-cloud.mail.protection.outlook.com" --port "25" --from "azure-devops-backup@orgdomain.cloud" --to "AZ-DL-AzureDevOpsBackupReports@orgdomain.cloud" --unzip --cleanup --daystokeepbackup 50`
+`.\AzureDevOpsBackup.exe --token "xxxx..." --org "AzureDevOpsOrgName" --backup "D:\Backup data\Azure DevOps"  --from "azure-devops-backup@orgdomain.cloud" --to "AZ-DL-AzureDevOpsBackupReports@orgdomain.cloud" --unzip --cleanup --daystokeepbackup 50`
 
-`.\AzureDevOpsBackup.exe --token "token.bin" --org "AzureDevOpsOrgName" --backup "D:\Backup data\Azure DevOps" --server "orgdomain-cloud.mail.protection.outlook.com" --port "25" --from "azure-devops-backup@orgdomain.cloud" --to "AZ-DL-AzureDevOpsBackupReports@orgdomain.cloud" --unzip --cleanup --daystokeepbackup 50 --simpelreportlayout --priority high`
+`.\AzureDevOpsBackup.exe --token "token.bin" --org "AzureDevOpsOrgName" --backup "D:\Backup data\Azure DevOps" --from "azure-devops-backup@orgdomain.cloud" --to "AZ-DL-AzureDevOpsBackupReports@orgdomain.cloud" --unzip --cleanup --daystokeepbackup 50 --simpelreportlayout --priority high`
 
-`.\AzureDevOpsBackup.exe --token "token.bin" --org "AzureDevOpsOrgName" --backup "D:\Backup data\Azure DevOps" --server "orgdomain-cloud.mail.protection.outlook.com" --port "25" --from "azure-devops-backup@orgdomain.cloud" --to "admin@orgdomain.cloud,support@orgdomain.cloud" --unzip --cleanup --daystokeepbackup 120 --noattatchlog`
+`.\AzureDevOpsBackup.exe --token "token.bin" --org "AzureDevOpsOrgName" --backup "D:\Backup data\Azure DevOps" --from "azure-devops-backup@orgdomain.cloud" --to "admin@orgdomain.cloud,support@orgdomain.cloud" --unzip --cleanup --daystokeepbackup 120 --noattatchlog`
 
 
 ### AzureDevOpsBackup unzip tool
