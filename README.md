@@ -1,3 +1,9 @@
+# Note
+
+Ceci est un clone de [https://github.com/michaelmsonne/AzureDevOpsBackupTool/tree/master].
+
+Il a été modifié pour utilser MsGrap plutôt qu'un SmtpClient pour envoyer des mails.
+
 # Azure DevOps Backup
 
 <p align="center">
